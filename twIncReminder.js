@@ -1,5 +1,5 @@
 /*
-* Script Name: Incomings Reminder
+* Script Name: Incomings Alarm
 * Version: v1.0
 * Last Updated: 2024-10-22
 * Author: SaveBank
@@ -11,29 +11,30 @@
 
 // User Input
 if (typeof DEBUG !== 'boolean') DEBUG = false;
+if (typeof FILTER !== 'string') FILTER = '';
+if (typeof ALARM_IN_SECONDS !== 'number') ALARM_IN_SECONDS = 30;
 
 
 var scriptConfig = {
     scriptData: {
-        prefix: 'sbIncR',
-        name: 'Inc Reminder',
+        prefix: 'sbIncA',
+        name: 'Inc Alarm',
         version: 'v1.0',
         author: 'SaveBank',
-        authorUrl: '',
+        authorUrl: 'https://forum.tribalwars.net/index.php?members/savebank.131111/',
         helpLink: '',
     },
     translations: {
         en_DK: {
-            'Can only be used in the village overview or incoming screen!': 'Can only be used in the village overview or incoming screen!',
+            'Can only be used in the incoming attacks screen!': 'Can only be used in the incoming attacks screen!',
             Help: 'Help',
-            'Inc Reminder': 'Inc Reminder',
+            'Inc Alarm': 'Inc Alarm',
 
         },
         de_DE: {
-            'Can only be used in the village overview or incoming screen!': 'Kann nur im Dorf oder in Eintreffende Befehle verwendet werden!',
+            'Can only be used in the incoming attacks screen!': 'Kann nur in Eintreffende Befehle verwendet werden!',
             Help: 'Hilfe',
-            'Inc Reminder': 'Inc Reminder',
-
+            'Inc Alarm': 'Inc Wecker',
         }
     }
     ,
@@ -54,9 +55,13 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
         }
         await twSDK.init(scriptConfig);
         const scriptInfo = twSDK.scriptInfo();
-        const isValidScreen = twSDK.checkValidLocation('screen');
-        if (!isValidScreen) {
-            UI.ErrorMessage(twSDK.tt('Can only be used in the incoming screen!'));
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const screen = urlParams.get('screen');
+        const mode = urlParams.get('mode');
+        const subtype = urlParams.get('subtype');
+        if (!(screen === 'overview_villages' && mode === 'incomings' && subtype === 'attacks')) {
+            UI.ErrorMessage(twSDK.tt('Can only be used in the incoming attacks screen!'));
             return;
         }
         let incDataMap;
@@ -82,8 +87,69 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
         })();
 
         function initReminder(incDataMap) {
-
+            // Cache filtered incDataMap based on FILTER and commandType
+            let filteredIncDataMap = new Map();
+            if (FILTER === "") {
+                for (let [key, value] of incDataMap) {
+                    if (value.commandType === "attack") {
+                        filteredIncDataMap.set(key, value);
+                    }
+                }
+            } else {
+                for (let [key, value] of incDataMap) {
+                    if (value.commandType === "attack" && value.label.includes(FILTER)) {
+                        filteredIncDataMap.set(key, value);
+                    }
+                }
+            }
+        
+            jQuery(window.TribalWars).on('global_tick', function () {
+                const startTime = performance.now();
+        
+                let nextIncTime = null;
+                jQuery('#incomings_table tbody tr.nowrap').each((_, incsRow) => {
+                    const incId = parseInt(jQuery(incsRow).find('span.quickedit').attr('data-id'));
+                    if (filteredIncDataMap.has(incId)) {
+                        // Find the seventh td in the row
+                        const seventhTd = jQuery(incsRow).find('td').eq(6);
+                        if (seventhTd.length === 0) {
+                            throw new Error(`Seventh td not found for incId ${incId}`);
+                        }
+                        // Find the span within the seventh td
+                        const remainingTimeSpan = seventhTd.find('span');
+                        if (remainingTimeSpan.length === 0) {
+                            throw new Error(`Remaining time span not found for incId ${incId}`);
+                        }
+                        // Extract the remaining time
+                        const remainingTime = remainingTimeSpan.text().trim();
+                        if (DEBUG) console.debug(`${scriptInfo}: Remaining time for incId ${incId}: ${remainingTime}`);
+        
+                        // Convert hh:mm:ss to seconds
+                        const timeParts = remainingTime.split(':');
+                        const hours = parseInt(timeParts[0], 10);
+                        const minutes = parseInt(timeParts[1], 10);
+                        const seconds = parseInt(timeParts[2], 10);
+                        const totalSeconds = (hours * 3600) + (minutes * 60) + seconds;
+        
+                        nextIncTime = {
+                            formatted: remainingTime,
+                            totalSeconds: totalSeconds
+                        };
+                        return false; // Break the loop once the first matching incId is found
+                    }
+                });
+        
+                if (DEBUG) console.debug(`${scriptInfo}: Time to get nextIncTime: ${(performance.now() - startTime).toFixed(2)} milliseconds`);
+        
+                const alarmTimes = [ALARM_IN_SECONDS - 1, ALARM_IN_SECONDS, ALARM_IN_SECONDS + 1].filter(time => time > 0);
+                if (nextIncTime && alarmTimes.includes(nextIncTime.totalSeconds)) {
+                    TribalWars.playSound('chat');
+                }
+        
+                document.title = nextIncTime ? `${nextIncTime.formatted}` : 'No attacks';
+            });
         }
+            
 
         function collectIncDataFromOverview() {
             const startTime = performance.now();
@@ -111,7 +177,7 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
             const apiUrl = 'https://api.counterapi.dev/v1';
             const playerId = game_data.player.id;
             const encodedPlayerId = btoa(game_data.player.id);
-            const apiKey = 'sbIncReminder'; // api key
+            const apiKey = 'sbIncAlarm'; // api key
             const namespace = 'savebankscriptstw'; // namespace
             try {
                 $.getJSON(`${apiUrl}/${namespace}/${apiKey}/up`, response => {
@@ -135,37 +201,6 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
                     if (DEBUG) console.debug(`Total users: ${response.count}`);
                 }).fail(() => { if (DEBUG) console.debug("Failed to fetch total users"); });
             } catch (error) { if (DEBUG) console.debug("Error fetching total users: ", error); }
-        }
-
-        function getLocalStorage() {
-            const localStorageSettings = JSON.parse(localStorage.getItem('sbIncReminder'));
-            // Check if all expected settings are in localStorageSettings
-            const expectedSettings = [
-
-            ];
-
-            let missingSettings = [];
-            if (localStorageSettings) {
-                missingSettings = expectedSettings.filter(setting => !(setting in localStorageSettings));
-                if (DEBUG && missingSettings.length > 0) console.debug(`${scriptInfo}: Missing settings in localStorage: `, missingSettings);
-            }
-
-            if (localStorageSettings && missingSettings.length === 0) {
-                // If settings exist in localStorage  return the object
-                return localStorageSettings;
-            } else {
-                const defaultSettings = {
-
-                };
-
-                saveLocalStorage(defaultSettings);
-
-                return defaultSettings;
-            }
-        }
-        function saveLocalStorage(settingsObject) {
-            // Stringify and save the settings object
-            localStorage.setItem('sbIncReminder', JSON.stringify(settingsObject));
         }
     });
 
