@@ -141,9 +141,11 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
         
                 if (DEBUG) console.debug(`${scriptInfo}: Time to get nextIncTime: ${(performance.now() - startTime).toFixed(2)} milliseconds`);
         
-                const alarmTimes = [ALARM_IN_SECONDS - 1, ALARM_IN_SECONDS, ALARM_IN_SECONDS + 1].filter(time => time > 0);
-                if (nextIncTime && alarmTimes.includes(nextIncTime.totalSeconds)) {
-                    TribalWars.playSound('chat');
+                if (ALARM_IN_SECONDS > 0) {
+                    const alarmTimes = [ALARM_IN_SECONDS - 1, ALARM_IN_SECONDS, ALARM_IN_SECONDS + 1].filter(time => time > 0);
+                    if (nextIncTime && alarmTimes.includes(nextIncTime.totalSeconds)) {
+                        TribalWars.playSound('chat');
+                    }
                 }
         
                 document.title = nextIncTime ? `${nextIncTime.formatted}` : 'No attacks';
