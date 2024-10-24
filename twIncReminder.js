@@ -177,8 +177,6 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
 
         function count() {
             const apiUrl = 'https://api.counterapi.dev/v1';
-            const playerId = game_data.player.id;
-            const encodedPlayerId = btoa(game_data.player.id);
             const apiKey = 'sbIncAlarm'; // api key
             const namespace = 'savebankscriptstw'; // namespace
             try {
@@ -186,17 +184,6 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
                     if (DEBUG) console.debug(`Total script runs: ${response.count}`);
                 }).fail(() => { if (DEBUG) console.debug("Failed to fetch total script runs"); });
             } catch (error) { if (DEBUG) console.debug("Error fetching total script runs: ", error); }
-
-            try {
-                $.getJSON(`${apiUrl}/${namespace}/${apiKey}_id${encodedPlayerId}/up`, response => {
-                    if (response.count === 1) {
-                        $.getJSON(`${apiUrl}/${namespace}/${apiKey}_users/up`).fail(() => {
-                            if (DEBUG) console.debug("Failed to increment user count");
-                        });
-                    }
-                    if (DEBUG) console.debug(`Player ${playerId} script runs: ${response.count}`);
-                }).fail(() => { if (DEBUG) console.debug("Failed to fetch player script runs"); });
-            } catch (error) { if (DEBUG) console.debug("Error fetching player script runs: ", error); }
 
             try {
                 $.getJSON(`${apiUrl}/${namespace}/${apiKey}_users`, response => {
