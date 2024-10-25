@@ -29,12 +29,14 @@ var scriptConfig = {
             'Can only be used in the incoming attacks screen!': 'Can only be used in the incoming attacks screen!',
             Help: 'Help',
             'Inc Alarm': 'Inc Alarm',
+            'No incoming attacks found': 'No incoming attacks found',
 
         },
         de_DE: {
             'Can only be used in the incoming attacks screen!': 'Kann nur in Eintreffende Befehle verwendet werden!',
             Help: 'Hilfe',
             'Inc Alarm': 'Inc Wecker',
+            'No incoming attacks found': 'Keine eintreffenden Angriffe gefunden',
         }
     }
     ,
