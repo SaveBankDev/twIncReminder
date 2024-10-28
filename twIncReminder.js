@@ -30,6 +30,7 @@ var scriptConfig = {
             Help: 'Help',
             'Inc Alarm': 'Inc Alarm',
             'No incoming attacks found': 'No incoming attacks found',
+            'There was an error!': 'There was an error!',
 
         },
         de_DE: {
@@ -37,6 +38,7 @@ var scriptConfig = {
             Help: 'Hilfe',
             'Inc Alarm': 'Inc Wecker',
             'No incoming attacks found': 'Keine eintreffenden Angriffe gefunden',
+            'There was an error!' : 'Es gab einen Fehler!',
         }
     }
     ,
@@ -88,7 +90,26 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
             }
         })();
 
+        function findRemainingTimeTdIndex() {
+            let tdIndex = -1;
+            jQuery('#incomings_table tbody tr.nowrap').first().find('td').each((index, td) => {
+                const span = jQuery(td).find('span');
+                if (span.length > 0 && /^\d{1,}:\d{2}:\d{2}$/.test(span.text().trim())) {
+                    tdIndex = index;
+                    if (DEBUG) console.debug(`${scriptInfo}: Found the td with the content ${span.text().trim()} containing the remaining time at index ${tdIndex}`);
+                    return false; // Break the loop once the correct td is found
+                }
+            });
+            if (tdIndex === -1) {
+                throw new Error('Could not find the td containing the remaining time');
+            }
+            return tdIndex;
+        }
+        
         function initReminder(incDataMap) {
+            // Find the index of the td containing the remaining time
+            const remainingTimeTdIndex = findRemainingTimeTdIndex();
+        
             // Cache filtered incDataMap based on FILTER and commandType
             let filteredIncDataMap = new Map();
             if (FILTER === "") {
@@ -112,13 +133,13 @@ $.getScript(`https://cdn.jsdelivr.net/gh/SaveBankDev/Tribal-Wars-Scripts-SDK@mai
                 jQuery('#incomings_table tbody tr.nowrap').each((_, incsRow) => {
                     const incId = parseInt(jQuery(incsRow).find('span.quickedit').attr('data-id'));
                     if (filteredIncDataMap.has(incId)) {
-                        // Find the seventh td in the row
-                        const seventhTd = jQuery(incsRow).find('td').eq(6);
-                        if (seventhTd.length === 0) {
-                            throw new Error(`Seventh td not found for incId ${incId}`);
+                        // Find the td at the saved index in the row
+                        const targetTd = jQuery(incsRow).find('td').eq(remainingTimeTdIndex);
+                        if (targetTd.length === 0) {
+                            throw new Error(`Target td not found for incId ${incId}`);
                         }
-                        // Find the span within the seventh td
-                        const remainingTimeSpan = seventhTd.find('span');
+                        // Find the span within the target td
+                        const remainingTimeSpan = targetTd.find('span');
                         if (remainingTimeSpan.length === 0) {
                             throw new Error(`Remaining time span not found for incId ${incId}`);
                         }
